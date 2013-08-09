@@ -58,8 +58,7 @@ public class DefaultTaskArtifactStateCacheAccess implements TaskArtifactStateCac
                 return getCache().createCache(cacheFile(cacheName), keyType, valueSerializer);
             }
         };
-        return new LazyCreationProxy<PersistentIndexedCache>(PersistentIndexedCache.class, factory).getSource();
-
+        return new HackyInMemoryCache(cacheName, keyType, new LazyCreationProxy<PersistentIndexedCache>(PersistentIndexedCache.class, factory).getSource());
     }
 
     private File cacheFile(String cacheName) {
