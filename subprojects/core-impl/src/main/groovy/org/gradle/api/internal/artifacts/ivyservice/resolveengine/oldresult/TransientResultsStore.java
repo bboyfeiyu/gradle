@@ -100,10 +100,10 @@ public class TransientResultsStore {
 
     public TransientConfigurationResults load(ResolvedContentsMapping mapping) {
         synchronized (lock) {
-            TransientConfigurationResults cached = cache.load();
-            if (cached != null) {
-                return cached;
-            }
+//            TransientConfigurationResults cached = cache.load();
+//            if (cached != null) {
+//                return cached;
+//            }
 
             Clock clock = new Clock();
             DefaultTransientConfigurationResults results = new DefaultTransientConfigurationResults();
@@ -126,7 +126,7 @@ public class TransientResultsStore {
                             id = s.read((DataInput) input);
                             results.root = results.allDependencies.get(id);
                             //root should be the last
-                            cache.store(results);
+//                            cache.store(results);
                             LOG.info("Loaded dependency resolution results ({}) from {}", clock.getTime(), binaryStore);
                             return results;
                         case 3:
