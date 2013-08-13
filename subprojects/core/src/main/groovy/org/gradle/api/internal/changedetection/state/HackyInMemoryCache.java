@@ -1,51 +1,45 @@
 package org.gradle.api.internal.changedetection.state;
 
-import com.google.common.collect.MapMaker;
 import org.gradle.cache.PersistentIndexedCache;
+
+import java.io.File;
 import java.util.concurrent.ConcurrentMap;
 
 public class HackyInMemoryCache<K,V> implements PersistentIndexedCache<K, V> {
-    private String cacheName;
-    private Class<K> keyType;
-    private PersistentIndexedCache delegate;
 
-    private final static ConcurrentMap<String, ConcurrentMap> GLOBAL_CACHE = new MapMaker().makeMap();
+    private final PersistentIndexedCache delegate;
+    private final ConcurrentMap<Object, Value<V>> cache;
 
-    public HackyInMemoryCache(String cacheName, Class<K> keyType, PersistentIndexedCache delegate) {
-        this.cacheName = cacheName;
-        this.keyType = keyType;
+    public HackyInMemoryCache(PersistentIndexedCache delegate, ConcurrentMap cache) {
         this.delegate = delegate;
-        GLOBAL_CACHE.put(cacheName, new MapMaker().makeMap());
+        this.cache = cache;
     }
 
     public V get(K key) {
-        ConcurrentMap cache = GLOBAL_CACHE.get(cacheName);
-        Object out = cache.get(key(key));
-        if (out != null) {
-            return (V) out;
+        assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key.getClass();
+        Value<V> value = cache.get(key);
+        if (value != null) {
+            return value.value;
         }
-        out = delegate.get(key);
-        if (out != null) {
-            cache.put(key, out);
-        }
-        return (V) out;
-    }
-
-    private Object key(K key) {
-        return key;
-//        new ByteArrayOutputStream()
-//        new DefaultSerializer<K>(keyType.getClassLoader()).write();
+        Object out = delegate.get(key);
+        cache.put(key, new Value(out));
+        return (V) value;
     }
 
     public void put(K key, V value) {
-        ConcurrentMap cache = GLOBAL_CACHE.get(cacheName);
-        cache.put(key, value);
+        cache.put(key, new Value<V>(value));
         delegate.put(key, value);
     }
 
     public void remove(K key) {
-        ConcurrentMap cache = GLOBAL_CACHE.get(cacheName);
         cache.remove(key);
         delegate.remove(key);
+    }
+
+    private static class Value<T> {
+        private T value;
+        public Value(T value) {
+            this.value = value;
+        }
     }
 }
