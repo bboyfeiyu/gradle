@@ -16,7 +16,7 @@ public class HackyInMemoryCache<K,V> implements PersistentIndexedCache<K, V> {
     }
 
     public V get(K key) {
-        assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key.getClass();
+        assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key;
         Value<V> value = cache.get(key);
         if (value != null) {
             return value.value;

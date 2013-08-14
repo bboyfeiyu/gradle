@@ -89,8 +89,17 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
                 ClassLoader original = serializer.getClassLoader();
                 serializer.setClassLoader(task.getClass().getClassLoader());
                 try {
-                    TaskHistory history = taskHistoryCache.get(task.getPath());
-                    return history == null ? new TaskHistory() : history;
+                    TaskHistory cached = taskHistoryCache.get(task.getPath());
+                    if (cached == null) {
+                        return new TaskHistory();
+                    } else {
+                        //we have to create a new instance, because TaskHistory is mutable
+                        //and if the cache returns *exactly* the same instance, we'll have some extra configurations
+                        //there should be a way to fix it more cleanly
+                        TaskHistory out = new TaskHistory();
+                        out.configurations.addAll(cached.configurations);
+                        return out;
+                    }
                 } finally {
                     serializer.setClassLoader(original);
                 }
@@ -142,6 +151,7 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
             LazyTaskExecution.Serializer executionSerializer = new LazyTaskExecution.Serializer(classLoader);
             for (int i = 0; i < executions; i++) {
                 LazyTaskExecution exec = executionSerializer.read(dataInput);
+                System.out.println("*** read history");
                 history.configurations.add(exec);
             }
             return history;
@@ -169,6 +179,9 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
     private static class TaskHistory {
         private static final int MAX_HISTORY_ENTRIES = 3;
         private final List<LazyTaskExecution> configurations = new ArrayList<LazyTaskExecution>();
+        public String toString() {
+            return super.toString() + "[" + configurations.size() + "]";
+        }
     }
 
     //TODO SF extract & unit test
