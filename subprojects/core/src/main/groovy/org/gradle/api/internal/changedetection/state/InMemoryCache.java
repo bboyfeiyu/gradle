@@ -28,38 +28,55 @@ import java.util.concurrent.ConcurrentMap;
 
 public class InMemoryCache {
 
-    private final ConcurrentMap<String, ConcurrentMap> cache = new MapMaker().makeMap();
     private final Object lock = new Object();
+    private ConcurrentMap<File, CacheData> cache = new MapMaker().makeMap();
 
-    private <K, V> PersistentIndexedCache memCached(String cacheName, PersistentIndexedCache<K, V> target) {
+    private <K, V> PersistentIndexedCache memCached(File cacheFile, PersistentIndexedCache<K, V> target) {
         synchronized (lock) {
-            ConcurrentMap data;
-            if (this.cache.containsKey(cacheName)) {
-                data = this.cache.get(cacheName);
+            CacheData data;
+            if (this.cache.containsKey(cacheFile)) {
+                data = this.cache.get(cacheFile);
             } else {
-                data = new MapMaker().makeMap();
-                this.cache.put(cacheName, data);
+                data = new CacheData(cacheFile);
+                this.cache.put(cacheFile, data);
             }
             return new MapCache(target, data);
         }
     }
 
-    private File expirationMarker;
+    private class CacheData {
+        private File expirationMarker;
+        private long marker;
+        private ConcurrentMap data = new MapMaker().makeMap();
 
-    public PersistentCache withMemoryCaching(final PersistentCache target, final String masterCacheName) {
+        public CacheData(File expirationMarker) {
+            this.expirationMarker = expirationMarker;
+            this.marker = expirationMarker.lastModified();
+        }
+
+        public void storeMarker() {
+            marker = expirationMarker.lastModified();
+        }
+
+        public void maybeExpire() {
+            if (marker != expirationMarker.lastModified()) {
+                data.clear();
+            }
+        }
+    }
+
+    public PersistentCache withMemoryCaching(final PersistentCache target) {
+        for (CacheData data : cache.values()) {
+            data.maybeExpire();
+        }
         return new PersistentCache() {
             public File getBaseDir() {
                 return target.getBaseDir();
             }
 
             public <K, V> PersistentIndexedCache<K, V> createCache(File cacheFile, Class<K> keyType, Serializer<V> valueSerializer) {
-                String cacheName = cacheFile.getName();
-                if (cacheName.startsWith(masterCacheName)) {
-                    expirationMarker = cacheFile;
-                    //TODO if the file is different than the existing one, drop all data
-                }
                 PersistentIndexedCache<K, V> out = target.createCache(cacheFile, keyType, valueSerializer);
-                return memCached(cacheName, out);
+                return memCached(cacheFile, out);
             }
 
             public <K, V> PersistentIndexedCache<K, V> createCache(File cacheFile, Class<K> keyType, Class<V> valueType) {
@@ -103,41 +120,49 @@ public class InMemoryCache {
     }
 
     private void beforeLocked() {
-
+        synchronized (lock) {
+            for (CacheData data : cache.values()) {
+                data.maybeExpire();
+            }
+        }
     }
 
     private void beforeUnlocked() {
-
+        synchronized (lock) {
+            for (CacheData data : cache.values()) {
+                data.storeMarker();
+            }
+        }
     }
 
     private static class MapCache<K,V> implements PersistentIndexedCache<K, V> {
 
         private final PersistentIndexedCache delegate;
-        private final ConcurrentMap<Object, Value<V>> cache;
+        private final CacheData cache;
 
-        public MapCache(PersistentIndexedCache delegate, ConcurrentMap cache) {
+        public MapCache(PersistentIndexedCache delegate, CacheData cache) {
             this.delegate = delegate;
             this.cache = cache;
         }
 
         public V get(K key) {
             assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key;
-            Value<V> value = cache.get(key);
+            Value<V> value = (Value) cache.data.get(key);
             if (value != null) {
                 return value.value;
             }
             Object out = delegate.get(key);
-            cache.put(key, new Value(out));
+            cache.data.put(key, new Value(out));
             return (V) value;
         }
 
         public void put(K key, V value) {
-            cache.put(key, new Value<V>(value));
+            cache.data.put(key, new Value<V>(value));
             delegate.put(key, value);
         }
 
         public void remove(K key) {
-            cache.remove(key);
+            cache.data.remove(key);
             delegate.remove(key);
         }
 

@@ -43,14 +43,14 @@ public class DefaultTaskArtifactStateCacheAccess implements TaskArtifactStateCac
         //TODO SF just do it in the constructor
         synchronized (lock) {
             if (cache == null) {
-                cache = cacheRepository
+                cache = CACHE.withMemoryCaching(cacheRepository
                         .cache("taskArtifacts")
                         .forObject(gradle)
                         .withDisplayName("task artifact state cache")
                         .withLockMode(FileLockManager.LockMode.Exclusive)
-                        .open();
+                        .open());
             }
-            return CACHE.withMemoryCaching(cache, "taskArtifacts");
+            return cache;
         }
     }
 
