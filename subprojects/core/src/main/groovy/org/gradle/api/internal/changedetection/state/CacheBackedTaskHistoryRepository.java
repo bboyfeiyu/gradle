@@ -151,7 +151,6 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
             LazyTaskExecution.Serializer executionSerializer = new LazyTaskExecution.Serializer(classLoader);
             for (int i = 0; i < executions; i++) {
                 LazyTaskExecution exec = executionSerializer.read(dataInput);
-                System.out.println("*** read history");
                 history.configurations.add(exec);
             }
             return history;
