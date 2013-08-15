@@ -15,7 +15,6 @@
  */
 package org.gradle.api.internal.changedetection.state;
 
-import com.google.common.collect.MapMaker;
 import org.gradle.internal.Factory;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.cache.CacheRepository;
@@ -26,7 +25,6 @@ import org.gradle.cache.internal.FileLockManager;
 import org.gradle.listener.LazyCreationProxy;
 
 import java.io.File;
-import java.util.concurrent.ConcurrentMap;
 
 public class DefaultTaskArtifactStateCacheAccess implements TaskArtifactStateCacheAccess {
     private final Gradle gradle;
@@ -39,6 +37,8 @@ public class DefaultTaskArtifactStateCacheAccess implements TaskArtifactStateCac
         this.cacheRepository = cacheRepository;
     }
 
+    private final static InMemoryCache CACHE = new InMemoryCache();
+
     private PersistentCache getCache() {
         //TODO SF just do it in the constructor
         synchronized (lock) {
@@ -50,28 +50,17 @@ public class DefaultTaskArtifactStateCacheAccess implements TaskArtifactStateCac
                         .withLockMode(FileLockManager.LockMode.Exclusive)
                         .open();
             }
-            return cache;
+            return CACHE.withMemoryCaching(cache, "taskArtifacts");
         }
     }
 
-    private final static ConcurrentMap<String, ConcurrentMap> GLOBAL_CACHE = new MapMaker().makeMap();
-
     public <K, V> PersistentIndexedCache<K, V> createCache(final String cacheName, final Class<K> keyType, final Class<V> valueType, final Serializer<V> valueSerializer) {
-        ConcurrentMap staticCache;
-        if (GLOBAL_CACHE.containsKey(cacheName)) {
-            staticCache = GLOBAL_CACHE.get(cacheName);
-        } else {
-            staticCache = new MapMaker().makeMap();
-            GLOBAL_CACHE.put(cacheName, staticCache);
-        }
-
         Factory<PersistentIndexedCache> factory = new Factory<PersistentIndexedCache>() {
             public PersistentIndexedCache create() {
                 return getCache().createCache(cacheFile(cacheName), keyType, valueSerializer);
             }
         };
-        PersistentIndexedCache lazy = new LazyCreationProxy<PersistentIndexedCache>(PersistentIndexedCache.class, factory).getSource();
-        return new HackyInMemoryCache(lazy, staticCache);
+        return new LazyCreationProxy<PersistentIndexedCache>(PersistentIndexedCache.class, factory).getSource();
     }
 
     private File cacheFile(String cacheName) {
