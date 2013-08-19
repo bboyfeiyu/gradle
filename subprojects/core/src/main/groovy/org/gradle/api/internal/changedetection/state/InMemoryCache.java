@@ -153,7 +153,7 @@ public class InMemoryCache {
             }
             Object out = delegate.get(key);
             cache.data.put(key, new Value(out));
-            return (V) value;
+            return (V) out;
         }
 
         public void put(K key, V value) {
