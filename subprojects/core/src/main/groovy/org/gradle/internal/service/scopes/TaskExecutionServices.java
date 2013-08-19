@@ -57,10 +57,10 @@ public class TaskExecutionServices extends DefaultServiceRegistry {
     }
 
     protected TaskArtifactStateCacheAccess createCacheAccess() {
-        return new DefaultTaskArtifactStateCacheAccess(gradle, get(CacheRepository.class));
+         return new DefaultTaskArtifactStateCacheAccess(gradle, get(CacheRepository.class), get(InMemoryTaskArtifactCache.class));
     }
 
-    protected TaskArtifactStateRepository createTaskArtifactStateRepository() {
+   protected TaskArtifactStateRepository createTaskArtifactStateRepository() {
         TaskArtifactStateCacheAccess cacheAccess = get(TaskArtifactStateCacheAccess.class);
 
         FileSnapshotter fileSnapshotter = new DefaultFileSnapshotter(

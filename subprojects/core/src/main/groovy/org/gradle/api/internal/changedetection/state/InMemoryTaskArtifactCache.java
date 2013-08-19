@@ -28,9 +28,9 @@ import org.gradle.messaging.serialize.Serializer;
 import java.io.File;
 import java.util.concurrent.ConcurrentMap;
 
-public class InMemoryCache {
+public class InMemoryTaskArtifactCache {
 
-    private final static Logger LOG = Logging.getLogger(InMemoryCache.class);
+    private final static Logger LOG = Logging.getLogger(InMemoryTaskArtifactCache.class);
 
     private final Object lock = new Object();
     private ConcurrentMap<File, CacheData> cache = new MapMaker().makeMap();
