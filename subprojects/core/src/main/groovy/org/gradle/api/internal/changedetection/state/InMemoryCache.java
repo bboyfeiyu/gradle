@@ -17,6 +17,8 @@
 package org.gradle.api.internal.changedetection.state;
 
 import com.google.common.collect.MapMaker;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.cache.PersistentCache;
 import org.gradle.cache.PersistentIndexedCache;
 import org.gradle.internal.Factories;
@@ -27,6 +29,8 @@ import java.io.File;
 import java.util.concurrent.ConcurrentMap;
 
 public class InMemoryCache {
+
+    private final static Logger LOG = Logging.getLogger(InMemoryCache.class);
 
     private final Object lock = new Object();
     private ConcurrentMap<File, CacheData> cache = new MapMaker().makeMap();
@@ -60,6 +64,7 @@ public class InMemoryCache {
 
         public void maybeExpire() {
             if (marker != expirationMarker.lastModified()) {
+                LOG.info("Discarding {} in-memory cache values for {}", data.size(), expirationMarker);
                 data.clear();
             }
         }
