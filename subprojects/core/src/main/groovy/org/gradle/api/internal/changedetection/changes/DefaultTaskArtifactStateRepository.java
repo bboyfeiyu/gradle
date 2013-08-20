@@ -70,6 +70,7 @@ public class DefaultTaskArtifactStateRepository implements TaskArtifactStateRepo
             messages.addAll(reasons);
             if (reasons.isEmpty()) {
                 upToDate = true;
+                history.removeCurrentExecution();
                 return true;
             }
             return false;

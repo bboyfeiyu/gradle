@@ -80,6 +80,10 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
                     }
                 });
             }
+
+            public void removeCurrentExecution() {
+                history.configurations.remove(0);
+            }
         };
     }
 
@@ -90,16 +94,7 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
                 serializer.setClassLoader(task.getClass().getClassLoader());
                 try {
                     TaskHistory cached = taskHistoryCache.get(task.getPath());
-                    if (cached == null) {
-                        return new TaskHistory();
-                    } else {
-                        //we have to create a new instance, because TaskHistory is mutable
-                        //and if the cache returns *exactly* the same instance, we'll have some extra configurations
-                        //there should be a way to fix it more cleanly
-                        TaskHistory out = new TaskHistory();
-                        out.configurations.addAll(cached.configurations);
-                        return out;
-                    }
+                    return cached != null? cached : new TaskHistory();
                 } finally {
                     serializer.setClassLoader(original);
                 }
