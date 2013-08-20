@@ -53,7 +53,7 @@ public class InMemoryTaskArtifactCache {
     private class CacheData {
         private File expirationMarker;
         private long marker;
-        private Cache data = CacheBuilder.newBuilder().build();
+        private Map data = new HashMap();
 
         public CacheData(File expirationMarker) {
             this.expirationMarker = expirationMarker;
@@ -67,7 +67,7 @@ public class InMemoryTaskArtifactCache {
         public void maybeExpire() {
             if (marker != expirationMarker.lastModified()) {
                 LOG.info("Discarding {} in-memory cache values for {}", data.size(), expirationMarker);
-                data.cleanUp();
+                data.clear();
             }
         }
     }
@@ -159,7 +159,7 @@ public class InMemoryTaskArtifactCache {
 
         public V get(K key) {
             assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key;
-            Value<V> value = (Value) cache.data.getIfPresent(key);
+            Value<V> value = (Value) cache.data.get(key);
             if (value != null) {
                 return value.value;
             }
@@ -174,7 +174,7 @@ public class InMemoryTaskArtifactCache {
         }
 
         public void remove(K key) {
-            cache.data.getIfPresent(key);
+            cache.data.remove(key);
             delegate.remove(key);
         }
 
