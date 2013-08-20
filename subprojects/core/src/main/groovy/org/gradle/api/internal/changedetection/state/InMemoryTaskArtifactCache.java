@@ -16,7 +16,8 @@
 
 package org.gradle.api.internal.changedetection.state;
 
-import com.google.common.collect.MapMaker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.cache.PersistentCache;
@@ -26,14 +27,15 @@ import org.gradle.internal.Factory;
 import org.gradle.messaging.serialize.Serializer;
 
 import java.io.File;
-import java.util.concurrent.ConcurrentMap;
+import java.util.HashMap;
+import java.util.Map;
 
 public class InMemoryTaskArtifactCache {
 
     private final static Logger LOG = Logging.getLogger(InMemoryTaskArtifactCache.class);
 
     private final Object lock = new Object();
-    private ConcurrentMap<File, CacheData> cache = new MapMaker().makeMap();
+    private final Map<File, CacheData> cache = new HashMap<File, CacheData>();
 
     private <K, V> PersistentIndexedCache memCached(File cacheFile, PersistentIndexedCache<K, V> target) {
         synchronized (lock) {
@@ -51,7 +53,7 @@ public class InMemoryTaskArtifactCache {
     private class CacheData {
         private File expirationMarker;
         private long marker;
-        private ConcurrentMap data = new MapMaker().makeMap();
+        private Cache data = CacheBuilder.newBuilder().build();
 
         public CacheData(File expirationMarker) {
             this.expirationMarker = expirationMarker;
@@ -65,14 +67,19 @@ public class InMemoryTaskArtifactCache {
         public void maybeExpire() {
             if (marker != expirationMarker.lastModified()) {
                 LOG.info("Discarding {} in-memory cache values for {}", data.size(), expirationMarker);
-                data.clear();
+                data.cleanUp();
             }
         }
     }
 
     public PersistentCache withMemoryCaching(final PersistentCache target) {
+        StringBuilder sb = new StringBuilder();
         for (CacheData data : cache.values()) {
             data.maybeExpire();
+            sb.append(data.expirationMarker.getName()).append(":").append(data.data.size()).append(", ");
+        }
+        if(!cache.isEmpty()) {
+            LOG.info("In-memory task history cache contains {} entries: {}", cache.size(), sb);
         }
         return new PersistentCache() {
             public File getBaseDir() {
@@ -152,7 +159,7 @@ public class InMemoryTaskArtifactCache {
 
         public V get(K key) {
             assert key instanceof String || key instanceof Long || key instanceof File : "Unsupported key type: " + key;
-            Value<V> value = (Value) cache.data.get(key);
+            Value<V> value = (Value) cache.data.getIfPresent(key);
             if (value != null) {
                 return value.value;
             }
@@ -167,7 +174,7 @@ public class InMemoryTaskArtifactCache {
         }
 
         public void remove(K key) {
-            cache.data.remove(key);
+            cache.data.getIfPresent(key);
             delegate.remove(key);
         }
 
