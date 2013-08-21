@@ -76,6 +76,10 @@ public class CacheBackedTaskHistoryRepository implements TaskHistoryRepository {
                                 snapshotRepository.remove(execution.outputFilesSnapshotId);
                             }
                         }
+                        for (LazyTaskExecution c : history.configurations) {
+                            c.cacheAccess = null;
+                            c.snapshotRepository = null;
+                        }
                         taskHistoryCache.put(task.getPath(), history);
                     }
                 });
